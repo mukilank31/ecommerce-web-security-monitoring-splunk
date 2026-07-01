@@ -1,0 +1,82 @@
+# E-Commerce Web Security Monitoring using Splunk
+
+## Objective
+Built a SOC-style log analysis project using Splunk Enterprise to detect
+suspicious activity from web access logs of a fictional e-commerce platform
+(Buttercup Games — Splunk official tutorial dataset). Analyzed 109,864 events
+across multiple detection use cases to identify threat patterns.
+
+## Tools Used
+- Splunk Enterprise (Local installation on Windows)
+- SPL (Search Processing Language)
+- Dataset: Buttercup Games tutorialdata.zip (Splunk official sample data)
+
+## Detection Use Cases (SPL Queries)
+
+### Use Case 1: Failed/Error Status by Client IP
+
+sourcetype=access_* status!=200
+| stats count by clientip
+| where count > 10
+| sort -count
+Identifies IP addresses generating repeated HTTP error responses
+(400, 404, 500, 503) — potential scanning or probing activity.
+
+### Use Case 2: Error Distribution by Server Source
+(error OR fail* OR severe) OR (status=404 OR status=500 OR status=503)
+| stats count by status, source
+| sort -count
+Shows which web server (www1/www2/www3) has highest error volume
+— useful for identifying unstable or targeted infrastructure.
+
+### Use Case 3: Abnormal Purchase Volume by IP
+sourcetype=access_* status=200 action=purchase
+| stats count by clientip
+| where count > 5
+| sort -count
+Flags IPs with unusually high successful purchase counts
+— indicates potential bot activity or fraud attempts.
+
+### Use Case 4: Top 10 Traffic Sources
+sourcetype=access_*
+| stats count by clientip
+| sort -count
+| head 10
+Identifies highest-volume IPs overall for traffic baseline
+and cross-correlation with suspicious activity.
+
+## Key Findings
+
+### Finding 1: High-Risk IP Identified (87.194.216.51)
+- Highest overall traffic: 1,036 events
+- Highest purchase volume: 134 successful purchases
+- Assessment: Strong bot/fraud activity indicator
+
+### Finding 2: Correlated Suspicious IPs
+- 211.166.11.101 and 128.241.220.82 appeared in BOTH
+  error-rate analysis AND high purchase volume analysis
+- Same IPs generating errors + abnormal purchases
+  = coordinated malicious behavior pattern
+
+### Finding 3: Server Infrastructure Issue
+- www3 server: 329 occurrences of status 503
+  (Service Unavailable) — highest across all servers
+- All 3 servers (www1, www2, www3) affected
+- Assessment: Potential DDoS impact or load balancer failure
+
+## Dashboard
+Built a 4-panel Splunk dashboard titled
+"Web Security Monitoring Dashboard" visualizing all four detection use cases.
+
+## Alert
+Configured a scheduled Splunk alert (runs hourly) to trigger
+when any client IP exceeds 50 error-level events within
+a 24-hour window — enabling automated anomaly detection.
+
+## Skills Demonstrated
+- SPL query writing and Boolean search logic
+- Field-based filtering and data correlation
+- Multi-source log analysis
+- Dashboard creation and alert configuration
+- Threat pattern identification from web access logs
+- SOC-style investigation and finding documentation

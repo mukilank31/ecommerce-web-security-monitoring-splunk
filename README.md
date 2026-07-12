@@ -1,82 +1,150 @@
 # E-Commerce Web Security Monitoring using Splunk
 
-## Objective
-Built a SOC-style log analysis project using Splunk Enterprise to detect
-suspicious activity from web access logs of a fictional e-commerce platform
-(Buttercup Games — Splunk official tutorial dataset). Analyzed 109,864 events
-across multiple detection use cases to identify threat patterns.
+A Splunk-based Security Operations (SOC) project that simulates real-world web application monitoring for an e-commerce platform, using the **Buttercup Games** dataset (Splunk's official tutorial data).
 
-## Tools Used
-- Splunk Enterprise (Local installation on Windows)
-- SPL (Search Processing Language)
-- Dataset: Buttercup Games tutorialdata.zip (Splunk official sample data)
+## 📌 Project Overview
 
-## Detection Use Cases (SPL Queries)
+This project demonstrates how a SOC Analyst uses Splunk to ingest, search, and analyze web server logs to detect suspicious activity, monitor application health, and build actionable alerting for an e-commerce environment.
 
-### Use Case 1: Failed/Error Status by Client IP
+- **Data Source:** Buttercup Games tutorial dataset (`tutorialdata.zip`) — web access logs from `www1`, `www2`, `www3` servers
+- **Total Events Indexed:** 109,864
+- **Tool Used:** Splunk Enterprise
+- **Focus Areas:** Web security monitoring, anomaly detection, dashboarding, alerting
 
-sourcetype=access_* status!=200
+## 🎯 Objectives
+
+- Ingest and index raw web access logs into Splunk
+- Write SPL (Search Processing Language) queries to detect security-relevant patterns
+- Build a dashboard to visualize key metrics in real time
+- Configure an automated hourly alert for time-sensitive detection
+
+## 🛠️ Setup
+
+1. Downloaded and extracted `tutorialdata.zip` (Splunk's official Buttercup Games sample dataset)
+2. Indexed the data into Splunk Enterprise
+3. Verified event count and field extraction (109,864 events across `www1`, `www2`, `www3` access logs)
+4. Built searches, dashboard panels, and an alert on top of the indexed data
+
+## 🔍 Detection Use Cases (SPL Queries)
+
+### 1. Top 10 Traffic Sources by Client IP
+```spl
+index=main sourcetype=access_combined
+| top limit=10 clientip
+```
+**Purpose:** Identifies the most active client IPs hitting the web servers, helping surface potential bots, scrapers, or reconnaissance activity hiding in normal traffic volume.
+
+**Sample Output:**
+
+| clientip | count |
+|---|---|
+| 87.194.216.51 | 1036 |
+| 211.166.11.101 | 736 |
+| 128.241.220.82 | 597 |
+| 194.215.205.19 | 487 |
+| 188.138.40.166 | 429 |
+
+![Top 10 Traffic Sources](docs/top10-traffic-sources.png)
+
+---
+
+### 2. Abnormal Purchase Volume by IP
+```spl
+index=main sourcetype=access_combined action=purchase
 | stats count by clientip
-| where count > 10
 | sort -count
-Identifies IP addresses generating repeated HTTP error responses
-(400, 404, 500, 503) — potential scanning or probing activity.
+```
+**Purpose:** Flags client IPs making an unusually high number of purchase actions — a pattern consistent with automated checkout abuse, carding attempts, or bot-driven fraud rather than genuine customer behavior.
 
-### Use Case 2: Error Distribution by Server Source
-(error OR fail* OR severe) OR (status=404 OR status=500 OR status=503)
-| stats count by status, source
+**Sample Output:**
+
+| clientip | count |
+|---|---|
+| 87.194.216.51 | 134 |
+| 128.241.220.82 | 95 |
+| 211.166.11.101 | 91 |
+| 107.3.146.207 | 72 |
+
+![Abnormal Purchase Volume](docs/abnormal-purchase-volume.png)
+
+---
+
+### 3. Error Distribution by Server Source
+```spl
+index=main sourcetype=access_combined status>=400
+| stats count by status source
 | sort -count
-Shows which web server (www1/www2/www3) has highest error volume
-— useful for identifying unstable or targeted infrastructure.
+```
+**Purpose:** Breaks down HTTP error codes (`404`, `500`, `503`) by the originating server source (`www1`, `www2`, `www3`), helping quickly spot whether errors are isolated to one server (possible targeted attack/misconfiguration) or spread across the environment (possible broader outage or scan).
 
-### Use Case 3: Abnormal Purchase Volume by IP
-sourcetype=access_* status=200 action=purchase
+**Sample Output:**
+
+| status | source | count |
+|---|---|---|
+| 503 | tutorialdata.zip:.\www3\access.log | 329 |
+| 503 | tutorialdata.zip:.\www1\access.log | 324 |
+| 503 | tutorialdata.zip:.\www2\access.log | 299 |
+| 500 | tutorialdata.zip:.\www2\access.log | 262 |
+| 404 | tutorialdata.zip:.\www1\access.log | 244 |
+
+![Error Distribution by Server Source](docs/error-distribution.png)
+
+---
+
+### 4. Failed/Error Status by Client IP
+```spl
+index=main sourcetype=access_combined status>=400
 | stats count by clientip
-| where count > 5
 | sort -count
-Flags IPs with unusually high successful purchase counts
-— indicates potential bot activity or fraud attempts.
+```
+**Purpose:** Correlates HTTP failures (4xx/5xx) back to the client IP generating them, highlighting IPs that are repeatedly hitting broken or restricted endpoints — a common signature of vulnerability scanning or brute-force probing.
 
-### Use Case 4: Top 10 Traffic Sources
-sourcetype=access_*
-| stats count by clientip
-| sort -count
-| head 10
-Identifies highest-volume IPs overall for traffic baseline
-and cross-correlation with suspicious activity.
+**Sample Output:**
 
-## Key Findings
+| clientip | count |
+|---|---|
+| 87.194.216.51 | 142 |
+| 211.166.11.101 | 94 |
+| 128.241.220.82 | 78 |
+| 194.215.205.19 | 71 |
 
-### Finding 1: High-Risk IP Identified (87.194.216.51)
-- Highest overall traffic: 1,036 events
-- Highest purchase volume: 134 successful purchases
-- Assessment: Strong bot/fraud activity indicator
+## 📊 Dashboard
 
-### Finding 2: Correlated Suspicious IPs
-- 211.166.11.101 and 128.241.220.82 appeared in BOTH
-  error-rate analysis AND high purchase volume analysis
-- Same IPs generating errors + abnormal purchases
-  = coordinated malicious behavior pattern
+All four use cases above were combined into a single **Web Security Monitoring Dashboard** for quick SOC triage — giving an analyst a single-pane view of traffic sources, purchase anomalies, error trends, and top offending IPs.
 
-### Finding 3: Server Infrastructure Issue
-- www3 server: 329 occurrences of status 503
-  (Service Unavailable) — highest across all servers
-- All 3 servers (www1, www2, www3) affected
-- Assessment: Potential DDoS impact or load balancer failure
+![Web Security Monitoring Dashboard](docs/dashboard-overview.png)
 
-## Dashboard
-Built a 4-panel Splunk dashboard titled
-"Web Security Monitoring Dashboard" visualizing all four detection use cases.
+## 🚨 Alerting
 
-## Alert
-Configured a scheduled Splunk alert (runs hourly) to trigger
-when any client IP exceeds 50 error-level events within
-a 24-hour window — enabling automated anomaly detection.
+An **hourly scheduled alert** was configured in Splunk to automatically flag suspicious activity as it occurs, rather than relying on manual searches.
 
-## Skills Demonstrated
-- SPL query writing and Boolean search logic
-- Field-based filtering and data correlation
-- Multi-source log analysis
-- Dashboard creation and alert configuration
-- Threat pattern identification from web access logs
-- SOC-style investigation and finding documentation
+- **Base Search:** `index=main sourcetype=access_combined status>=400 | stats count by clientip | where count > 50`
+- **Alert Frequency:** Every 1 hour (cron: `0 * * * *`)
+- **Trigger Condition:** Number of results > 0 (i.e., any client IP crossing the error-count threshold in the last hour)
+- **Alert Action:** Logged in Splunk's Triggered Alerts / notification
+
+## 🧠 Key Learnings
+
+- Hands-on experience with Splunk data ingestion and index management
+- Writing SPL queries (`stats`, `top`, `sort`, field filtering) for real security detection scenarios
+- Building analyst-ready dashboards for faster triage
+- Configuring time-based alerting for proactive monitoring rather than reactive searching
+
+## 🗂️ Repository Structure
+
+```
+splunk-security-projects/
+└── ecommerce-web-security-monitoring/
+    ├── README.md
+    └── docs/
+        ├── top10-traffic-sources.png
+        ├── abnormal-purchase-volume.png
+        ├── error-distribution.png
+        └── dashboard-overview.png
+```
+
+## 👤 Author
+
+**Mukilan K**
+B.E. Computer Science Engineering | Aspiring SOC Analyst / VAPT Engineer
+[LinkedIn](https://linkedin.com/in/mukilan-k-a14790326) | mukilank31@gmail.com

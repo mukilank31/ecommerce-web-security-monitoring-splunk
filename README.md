@@ -65,7 +65,7 @@ index=main sourcetype=access_combined action=purchase
 | 211.166.11.101 | 91 |
 | 107.3.146.207 | 72 |
 
-![Abnormal Purchase Volume](docs/abnormal-purchase-volume.png)
+![Abnormal Purchase Volume](/abnormal-purchase-volume.png)
 
 ---
 
@@ -87,7 +87,7 @@ index=main sourcetype=access_combined status>=400
 | 500 | tutorialdata.zip:.\www2\access.log | 262 |
 | 404 | tutorialdata.zip:.\www1\access.log | 244 |
 
-![Error Distribution by Server Source](docs/error-distribution.png)
+![Error Distribution by Server Source](/error-distribution.png)
 
 ---
 
@@ -112,7 +112,7 @@ index=main sourcetype=access_combined status>=400
 
 All four use cases above were combined into a single **Web Security Monitoring Dashboard** for quick SOC triage — giving an analyst a single-pane view of traffic sources, purchase anomalies, error trends, and top offending IPs.
 
-![Web Security Monitoring Dashboard](docs/dashboard-overview.png)
+![Web Security Monitoring Dashboard](/dashboard-overview.png)
 
 ## 🚨 Alerting
 
